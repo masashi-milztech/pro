@@ -17,19 +17,39 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
     (isBoth && submission.resultRemoveUrl && !submission.resultAddUrl) ? 'remove' : 'add'
   );
   const [sliderPos, setSliderPos] = useState(50);
+  const [isDownloading, setIsDownloading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
   const afterImageUrl = activeStage === 'remove' ? submission.resultRemoveUrl : (submission.resultAddUrl || submission.resultDataUrl);
   const needsPayment = submission.plan === PlanType.FLOOR_PLAN_CG && submission.paymentStatus === 'quote_pending' && submission.quotedAmount;
 
-  const handleDownload = (url: string, prefix: string) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${prefix}_${submission.fileName}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (url: string, prefix: string) => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const planTitle = plans[submission.plan]?.title || 'Staging';
+      // Normalize plan title for filename (replace spaces with underscores)
+      const cleanTitle = planTitle.replace(/\s+/g, '_');
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${prefix}_${cleanTitle}_${submission.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download failed, falling back to open:", err);
+      // Fallback: simply open in new tab if blob fetch fails (e.g. CORS issues)
+      window.open(url, '_blank');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const updatePosition = (clientX: number) => {
@@ -171,9 +191,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => handleDownload(submission.dataUrl, 'SOURCE')} className="py-4 border-2 border-slate-100 rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all">Download Source</button>
+              <button onClick={() => handleDownload(submission.dataUrl, 'SOURCE')} disabled={isDownloading} className="py-4 border-2 border-slate-100 rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50">
+                {isDownloading ? 'Downloading...' : 'Download Source'}
+              </button>
               {afterImageUrl && (
-                <button onClick={() => handleDownload(afterImageUrl, 'RESULT')} className="py-4 bg-slate-900 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all">Download Result</button>
+                <button onClick={() => handleDownload(afterImageUrl, 'RESULT')} disabled={isDownloading} className="py-4 bg-slate-900 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all disabled:opacity-50">
+                   {isDownloading ? 'Downloading...' : 'Download Result'}
+                </button>
               )}
             </div>
           </div>

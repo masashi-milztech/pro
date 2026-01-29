@@ -138,5 +138,48 @@ export const EMAIL_TEMPLATES = {
         </div>
       </div>
     </div>
+  `,
+  QUOTE_READY: (data: { 
+    orderId: string, 
+    planName: string,
+    amount: string,
+    thumbnail: string,
+    actionUrl: string
+  }) => `
+    <div style="${STYLE.container}">
+      <div style="${STYLE.card}">
+        <div style="${STYLE.header}">
+          <p style="${STYLE.title}">StagingPro Studio</p>
+          <h2 style="${STYLE.heading}">QUOTE<br/>PREPARED</h2>
+        </div>
+        <div style="${STYLE.body}">
+          <div style="${STYLE.thumbnailContainer}">
+            <img src="${data.thumbnail}" style="${STYLE.thumbnail}" alt="Project View" />
+          </div>
+          <p style="text-align: center; font-size: 14px; color: #64748B; margin-bottom: 30px; line-height: 1.6;">
+            Our team has completed the assessment of your project requirements. A custom quote is now ready for your review.
+          </p>
+          <table style="${STYLE.infoTable}" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="${STYLE.label}" width="40%">Project ID</td>
+              <td style="${STYLE.value}">${data.orderId || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="${STYLE.label}" width="40%">Service</td>
+              <td style="${STYLE.value}">${data.planName || '3D Modeling'}</td>
+            </tr>
+            <tr>
+              <td style="${STYLE.lastLabel}" width="40%">Quote Amount</td>
+              <td style="${STYLE.lastValue}">${data.amount}</td>
+            </tr>
+          </table>
+          <a href="${data.actionUrl}" style="${STYLE.button}">Proceed to Payment</a>
+          <p style="${STYLE.footerText}">
+            Upon payment, your project will be assigned to a visualizer immediately.<br/>
+            Need to discuss the quote? Reply via the studio chat.
+          </p>
+        </div>
+      </div>
+    </div>
   `
 };

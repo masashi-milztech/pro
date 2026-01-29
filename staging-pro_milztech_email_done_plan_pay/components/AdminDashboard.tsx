@@ -37,6 +37,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [chattingSubmission, setChattingSubmission] = useState<Submission | null>(null);
   const [showEditorManager, setShowEditorManager] = useState(false);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
+  const [lastReadMap, setLastReadMap] = useState<Record<string, number>>({});
   
   // Quote States
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
@@ -48,9 +49,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
 
+  // Editor Add Form State
+  const [newEditorName, setNewEditorName] = useState('');
+  const [newEditorSpecialty, setNewEditorSpecialty] = useState('');
+  const [newEditorEmail, setNewEditorEmail] = useState('');
+
   useEffect(() => {
     loadAllMessages();
-    const interval = setInterval(loadAllMessages, 10000);
+    const interval = setInterval(loadAllMessages, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -58,6 +64,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const msgs = await db.messages.fetchAll() as Message[];
       setAllMessages(msgs);
+      
+      // Update local last read map from localStorage for Admin/Editor
+      const map: Record<string, number> = {};
+      submissions.forEach(s => {
+        const val = localStorage.getItem(`chat_last_read_${s.id}`);
+        if (val) map[s.id] = parseInt(val);
+      });
+      setLastReadMap(map);
     } catch (err) {
       console.error("Failed to load messages:", err);
     }
@@ -72,16 +86,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     
     setIsUpdatingQuote(true);
     try {
-      // db.submissions.update returns Promise<void> and throws error if any
       await db.submissions.update(id, { quotedAmount: amount });
-      
       setEditingQuoteId(null);
       setQuoteAmount('');
       setSchemaError(null);
       onRefresh();
     } catch (err: any) {
       console.error("Quote update error:", err);
-      // カラムが存在しない場合や Supabase 側でエラーが出る場合に警告を表示
       setSchemaError(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "quotedAmount" bigint;`);
     } finally {
       setIsUpdatingQuote(false);
@@ -95,6 +106,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setRejectNote('');
   };
 
+  const handleAddEditor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEditorName || !newEditorSpecialty) return;
+    onAddEditor(newEditorName, newEditorSpecialty, newEditorEmail);
+    setNewEditorName('');
+    setNewEditorSpecialty('');
+    setNewEditorEmail('');
+  };
+
   const submissionChatInfo = useMemo(() => {
     const info: Record<string, { count: number, lastMessage?: Message, hasNew: boolean }> = {};
     allMessages.forEach(msg => {
@@ -102,13 +122,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!sId) return;
       if (!info[sId]) info[sId] = { count: 0, hasNew: false };
       info[sId].count += 1;
+      
       if (!info[sId].lastMessage || msg.timestamp > info[sId].lastMessage.timestamp) {
         info[sId].lastMessage = msg;
-        info[sId].hasNew = (msg.sender_role === 'user');
+        
+        // Admin/Editor logic: It is "NEW" if the last sender was a user AND it is after our last seen timestamp
+        const lastSeen = lastReadMap[sId] || 0;
+        info[sId].hasNew = (msg.sender_role === 'user' && msg.timestamp > lastSeen);
       }
     });
     return info;
-  }, [allMessages]);
+  }, [allMessages, lastReadMap]);
 
   const filteredSubmissions = useMemo(() => {
     let result = submissions.filter(s => s.paymentStatus === 'paid' || s.paymentStatus === 'quote_pending');
@@ -194,7 +218,90 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {viewingDetail && <DetailModal submission={viewingDetail} plans={plans} onClose={() => setViewingDetail(null)} />}
       {chattingSubmission && <ChatBoard submission={chattingSubmission} user={user} plans={plans} onClose={() => { setChattingSubmission(null); loadAllMessages(); }} />}
       
-      {/* SQL Setup Modal */}
+      {/* Team Manager Modal */}
+      {showEditorManager && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+            <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center">
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black uppercase jakarta tracking-tight text-slate-900">Studio Team Manager</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manage Production Visualizers</p>
+              </div>
+              <button onClick={() => setShowEditorManager(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-900 hover:text-white transition-all">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-10 no-scrollbar space-y-12">
+              <div className="bg-slate-50 rounded-[2rem] p-8 space-y-6">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-900">Add New Visualizer</h4>
+                <form onSubmit={handleAddEditor} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <input 
+                    value={newEditorName}
+                    onChange={(e) => setNewEditorName(e.target.value)}
+                    placeholder="Full Name"
+                    className="px-6 py-4 rounded-xl text-sm font-medium border-2 border-transparent focus:border-slate-900 outline-none bg-white shadow-sm"
+                    required
+                  />
+                  <input 
+                    value={newEditorSpecialty}
+                    onChange={(e) => setNewEditorSpecialty(e.target.value)}
+                    placeholder="Specialty (e.g. CGI, Staging)"
+                    className="px-6 py-4 rounded-xl text-sm font-medium border-2 border-transparent focus:border-slate-900 outline-none bg-white shadow-sm"
+                    required
+                  />
+                  <input 
+                    type="email"
+                    value={newEditorEmail}
+                    onChange={(e) => setNewEditorEmail(e.target.value)}
+                    placeholder="Studio Email"
+                    className="px-6 py-4 rounded-xl text-sm font-medium border-2 border-transparent focus:border-slate-900 outline-none bg-white shadow-sm"
+                    required
+                  />
+                  <button type="submit" className="md:col-span-3 py-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.4em] shadow-xl hover:bg-black transition-all">
+                    Register Visualizer
+                  </button>
+                </form>
+              </div>
+
+              <div className="space-y-6">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-900">Studio Directory</h4>
+                <div className="grid grid-cols-1 gap-4">
+                  {editors.map((ed) => (
+                    <div key={ed.id} className="group flex items-center justify-between p-6 bg-white border border-slate-100 rounded-2xl hover:border-slate-900 hover:shadow-lg transition-all">
+                      <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs">
+                          {ed.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black uppercase tracking-tight text-slate-900">{ed.name}</p>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{ed.specialty}</span>
+                            <span className="text-[9px] text-slate-200">|</span>
+                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">ID: {ed.id}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => onDeleteEditor(ed.id)}
+                        className="px-6 py-2 border border-slate-100 text-rose-500 rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                  {editors.length === 0 && (
+                    <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">No registered visualizers</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {schemaError && (
         <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl p-12 space-y-8 border-4 border-rose-500">
@@ -254,7 +361,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-           {user?.role === 'admin' && <button onClick={() => setShowEditorManager(true)} className="flex-1 md:flex-none px-6 py-2.5 bg-white border-2 border-slate-900 text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-full">Team Manager</button>}
+           {user?.role === 'admin' && <button onClick={() => setShowEditorManager(true)} className="flex-1 md:flex-none px-6 py-2.5 bg-white border-2 border-slate-900 text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-slate-900 hover:text-white transition-all">Team Manager</button>}
            <button onClick={onRefresh} className="flex-1 md:flex-none px-6 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-full">Sync</button>
         </div>
       </header>
@@ -296,6 +403,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 const isDone = sub.status === 'completed';
                 const isQuotePlan = sub.plan === PlanType.FLOOR_PLAN_CG;
                 const quotePending = isQuotePlan && sub.paymentStatus === 'quote_pending' && !isDone;
+                const hasNewMessage = submissionChatInfo[sub.id]?.hasNew;
                 
                 return (
                   <tr key={sub.id} className="hover:bg-slate-50/50 transition-all">
@@ -332,9 +440,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </select>
                     </td>
                     <td className="px-6 py-4">
-                       <button onClick={() => setChattingSubmission(sub)} className="px-4 py-2 bg-slate-50 hover:bg-slate-900 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2">
-                         CHAT {submissionChatInfo[sub.id]?.count > 0 && `(${submissionChatInfo[sub.id].count})`}
-                         {submissionChatInfo[sub.id]?.hasNew && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>}
+                       <button onClick={() => setChattingSubmission(sub)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 group relative ${hasNewMessage ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-50 text-slate-900 hover:bg-slate-900 hover:text-white'}`}>
+                         <span>CHAT {submissionChatInfo[sub.id]?.count > 0 && `(${submissionChatInfo[sub.id].count})`}</span>
+                         {hasNewMessage && (
+                           <div className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded-full">
+                              <span className="w-1 h-1 bg-white rounded-full animate-ping"></span>
+                              <span className="text-[7px] tracking-tight">NEW</span>
+                           </div>
+                         )}
                        </button>
                     </td>
                     <td className="px-8 py-4">

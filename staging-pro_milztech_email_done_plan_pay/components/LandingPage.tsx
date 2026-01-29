@@ -17,6 +17,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
+  // 公開設定になっているプランのみを抽出
+  const visiblePlans = Object.values(plans).filter(p => p.isVisible !== false);
+
   const scrollToShowcase = () => {
     showcaseRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -236,7 +239,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
               <span className="text-[8px] md:text-[10px] font-black text-white uppercase tracking-[0.4em] md:tracking-[0.5em] whitespace-nowrap">Production Studio Active</span>
             </div>
             <div className="relative w-full">
-              <h1 className="text-[14vw] sm:text-7xl md:text-9xl lg:text-[11rem] xl:text-[13rem] font-black text-slate-900 tracking-tighter uppercase leading-[0.8] jakarta px-2">
+              <h1 className="text-[14vw] sm:text-7xl md:text-9xl lg:text-[11rem] xl:text-[13rem] font-black text-slate-900 tracking-tighter uppercase jakarta px-2">
                 Staging<span className="text-slate-200">Pro</span>
               </h1>
             </div>
@@ -317,7 +320,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
           </div>
 
           <div className="space-y-6">
-            {Object.values(plans).map((plan) => (
+            {visiblePlans.map((plan) => (
               <div 
                 key={plan.id} 
                 className="group relative flex flex-col md:flex-row items-center gap-8 md:gap-12 p-8 md:p-12 bg-white rounded-[2.5rem] border border-slate-100 hover:border-slate-900 hover:shadow-2xl transition-all duration-500"

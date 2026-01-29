@@ -25,7 +25,10 @@ const FLOOR_PLAN_GUIDE = `Please provide the following details:
 6. Other Specifics:`;
 
 export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmission, userSubmissions, plans }) => {
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>(PlanType.FURNITURE_REMOVE);
+  // 公開設定になっているプランのみを抽出
+  const visiblePlansList = useMemo(() => Object.values(plans).filter(p => p.isVisible !== false), [plans]);
+  
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>(visiblePlansList[0]?.id as PlanType || PlanType.FURNITURE_REMOVE);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [instructions, setInstructions] = useState('');
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
@@ -327,7 +330,7 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
             <div className="card-premium rounded-[3rem] p-10 md:p-14">
               <div className="flex items-center gap-6 mb-12"><span className="w-12 h-12 flex items-center justify-center bg-slate-900 text-white rounded-2xl font-black text-lg">01</span><h2 className="text-2xl font-black text-slate-900 uppercase">Select Service</h2></div>
               <div className="flex flex-col gap-4">
-                {Object.values(plans).map((p) => (
+                {visiblePlansList.map((p) => (
                   <PlanCard key={p.id} plan={p} isSelected={selectedPlan === p.id} onSelect={handlePlanChange} />
                 ))}
               </div>

@@ -45,9 +45,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isUpdatingQuote, setIsUpdatingQuote] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
 
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectNote, setRejectNote] = useState('');
-
   const [newEditorName, setNewEditorName] = useState('');
   const [newEditorSpecialty, setNewEditorSpecialty] = useState('');
   const [newEditorEmail, setNewEditorEmail] = useState('');
@@ -128,7 +125,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         info[sId].lastMessage = msg;
       }
       
-      // Admin側: Userが送信した最新メッセージが、自分が最後に見た時間より新しければNEW
       if (msg.sender_role === 'user' && msg.timestamp > lastSeen) {
          info[sId].hasNew = true;
       }
@@ -156,6 +152,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     pending: submissions.filter(s => s.status === 'pending' && s.paymentStatus !== 'unpaid').length,
     processing: submissions.filter(s => s.status === 'processing' && s.paymentStatus !== 'unpaid').length,
     completed: submissions.filter(s => s.status === 'completed' && s.paymentStatus !== 'unpaid').length,
+  };
+
+  const handleAddEditor = () => {
+    if (!newEditorName || !newEditorSpecialty) return;
+    onAddEditor(newEditorName, newEditorSpecialty, newEditorEmail);
+    setNewEditorName('');
+    setNewEditorSpecialty('');
+    setNewEditorEmail('');
   };
 
   const DeliveryDropZone = ({ submission, type }: { submission: Submission, type: 'remove' | 'add' | 'single' }) => {
@@ -220,19 +224,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {viewingDetail && <DetailModal submission={viewingDetail} plans={plans} onClose={() => setViewingDetail(null)} />}
       {chattingSubmission && <ChatBoard submission={chattingSubmission} user={user} plans={plans} onClose={() => { setChattingSubmission(null); loadAllMessages(); }} />}
       
+      {/* Team Manager UI */}
+      {showEditorManager && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+           <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-10 border-b flex justify-between items-center bg-white">
+                 <div className="space-y-1">
+                   <h3 className="text-2xl font-black uppercase tracking-tight jakarta text-slate-900">Studio Team Manager</h3>
+                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Add or manage architectural visualizers</p>
+                 </div>
+                 <button onClick={() => setShowEditorManager(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-900 hover:text-white transition-all">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                 </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-10 space-y-12 no-scrollbar">
+                 <div className="bg-slate-50 p-8 rounded-[2rem] space-y-6">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Add New Visualizer</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       <input value={newEditorName} onChange={(e) => setNewEditorName(e.target.value)} placeholder="Editor Name" className="px-6 py-4 rounded-xl text-xs font-medium outline-none focus:ring-2 ring-slate-900 transition-all border border-slate-100" />
+                       <input value={newEditorEmail} onChange={(e) => setNewEditorEmail(e.target.value)} placeholder="Email (Auth)" className="px-6 py-4 rounded-xl text-xs font-medium outline-none focus:ring-2 ring-slate-900 transition-all border border-slate-100" />
+                       <input value={newEditorSpecialty} onChange={(e) => setNewEditorSpecialty(e.target.value)} placeholder="Specialty (e.g. 3D Model)" className="px-6 py-4 rounded-xl text-xs font-medium outline-none focus:ring-2 ring-slate-900 transition-all border border-slate-100" />
+                    </div>
+                    <button onClick={handleAddEditor} className="w-full py-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Authorize Team Member</button>
+                 </div>
+                 
+                 <div className="space-y-4">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Studio Members ({editors.length})</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       {editors.map(ed => (
+                         <div key={ed.id} className="p-6 bg-white border border-slate-100 rounded-2xl flex justify-between items-center group hover:border-slate-900 transition-all">
+                            <div className="space-y-1">
+                               <p className="text-xs font-black uppercase tracking-tight text-slate-900">{ed.name}</p>
+                               <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{ed.specialty} • {ed.email}</p>
+                            </div>
+                            <button onClick={() => onDeleteEditor(ed.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
       {schemaError && (
         <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl p-12 space-y-8 border-4 border-rose-500">
              <div className="text-center space-y-4">
                 <h3 className="text-2xl font-black uppercase tracking-tight jakarta text-slate-900">SQL設定が必要です</h3>
-                <p className="text-sm font-medium text-slate-500 leading-relaxed italic">
-                   見積金額を保存するためのカラムが不足しています。
-                </p>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed italic">見積金額を保存するためのカラムが不足しています。</p>
              </div>
              <div className="bg-slate-900 p-6 rounded-2xl overflow-hidden shadow-inner relative group">
-                <code className="text-emerald-400 text-[10px] font-mono break-all leading-relaxed block">
-                   {schemaError}
-                </code>
+                <code className="text-emerald-400 text-[10px] font-mono break-all leading-relaxed block">{schemaError}</code>
              </div>
              <button onClick={() => setSchemaError(null)} className="w-full py-5 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">閉じる</button>
           </div>
@@ -350,20 +395,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <div className="flex flex-col items-end gap-2 w-full max-w-[200px]">
                               {editingQuoteId === sub.id ? (
                                 <div className="flex gap-2 animate-in slide-in-from-right-4 w-full">
-                                  <input 
-                                    type="number" 
-                                    placeholder="Amount in cents"
-                                    value={quoteAmount}
-                                    onChange={(e) => setQuoteAmount(e.target.value)}
-                                    className="flex-grow px-3 py-2 text-[10px] border-2 border-slate-900 rounded-xl outline-none" 
-                                  />
-                                  <button 
-                                    onClick={() => handleUpdateQuote(sub.id)} 
-                                    disabled={isUpdatingQuote}
-                                    className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[8px] font-black uppercase disabled:opacity-50"
-                                  >
-                                    Set
-                                  </button>
+                                  <input type="number" placeholder="Amount in cents" value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} className="flex-grow px-3 py-2 text-[10px] border-2 border-slate-900 rounded-xl outline-none" />
+                                  <button onClick={() => handleUpdateQuote(sub.id)} disabled={isUpdatingQuote} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[8px] font-black uppercase disabled:opacity-50">Set</button>
                                 </div>
                               ) : (
                                 <button onClick={() => setEditingQuoteId(sub.id)} className="w-full px-4 py-3 bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-600 transition-all">
@@ -372,7 +405,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               )}
                             </div>
                           )}
-
                           {isDone ? (
                             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
@@ -380,18 +412,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </div>
                           ) : (
                             <div className={`flex items-center gap-2 transition-all ${canAct ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}>
-                               <button 
-                                onClick={() => setRejectingId(sub.id)} 
-                                className="px-4 py-2 bg-white border border-rose-100 text-rose-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                               >
-                                 Reject
-                               </button>
-                               <button 
-                                onClick={() => onApprove(sub.id)} 
-                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20"
-                               >
-                                 Approve
-                               </button>
+                               <button onClick={() => onDeliver(sub.id, { status: 'processing' })} className="px-4 py-2 bg-white border border-rose-100 text-rose-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all shadow-sm">Reject</button>
+                               <button onClick={() => onApprove(sub.id)} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20">Approve</button>
                             </div>
                           )}
                        </div>

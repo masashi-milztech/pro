@@ -394,7 +394,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button onClick={handleSavePlan} className={`w-full py-6 ${editingPlanId ? 'bg-indigo-600' : 'bg-slate-900'} text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] transition-all`}>{editingPlanId ? 'Update Existing Plan' : 'Publish Production Plan'}</button>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.values(plans).map(p => (
+                {/* Added explicit cast to Plan[] to resolve 'unknown' type errors */}
+                {(Object.values(plans) as Plan[]).map(p => (
                    <div key={p.id} className={`p-8 bg-white border rounded-[2.5rem] flex justify-between items-center group transition-all ${p.isVisible === false ? 'opacity-40 border-slate-100 grayscale' : 'border-slate-100 hover:border-slate-900'}`}>
                       <div className="space-y-1">
                          <div className="flex items-center gap-2">
@@ -441,7 +442,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             className="w-full px-6 py-4 rounded-xl text-xs font-medium border border-slate-100 outline-none focus:ring-2 ring-slate-900 bg-white"
                          >
                             <option value="">Select Service Category</option>
-                            {Object.values(plans).map(plan => (
+                            {/* Added explicit cast to Plan[] to resolve 'unknown' type errors */}
+                            {(Object.values(plans) as Plan[]).map(plan => (
                               <option key={plan.id} value={plan.title}>{plan.title}</option>
                             ))}
                          </select>
@@ -518,7 +520,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </td>
                       <td className="px-6 py-4"> <span className="text-[9px] font-black text-slate-900 bg-slate-100 px-2 py-1 rounded-lg"> {dueDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase()} </span> </td>
                       <td className="px-6 py-4">
-                         <select value={sub.assignedEditorId || ''} onChange={(e) => onAssign(sub.id, e.target.value)} className="bg-slate-50 border-none px-3 py-1.5 rounded-lg text-[9px] font-black uppercase outline-none focus:bg-white transition-all w-full max-w-[140px]">
+                         <select value={sub.assignedEditorId || ''} onChange={(e) => onAssign(sub.id, e.target.value)} className="bg-slate-50 border-none px-3 py-1.5 rounded-lg text-[9px] font-black uppercase outline-none focus:bg-white transition-all w-full max-w-[1400px]">
                             <option value="">Unassigned</option>
                             {editors.map(ed => <option key={ed.id} value={ed.id}>{ed.name}</option>)}
                           </select>

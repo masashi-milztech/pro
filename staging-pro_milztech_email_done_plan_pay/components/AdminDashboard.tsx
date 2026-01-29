@@ -43,7 +43,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [quoteAmount, setQuoteAmount] = useState<string>('');
   const [isUpdatingQuote, setIsUpdatingQuote] = useState(false);
-  const [schemaError, setSchemaError] = useState<string | null>(null);
+  const [planSchemaError, setPlanSchemaError] = useState<string | null>(null);
 
   const [newEditorName, setNewEditorName] = useState('');
   const [newEditorSpecialty, setNewEditorSpecialty] = useState('');
@@ -91,18 +91,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         } catch (e) { console.error("Email error:", e); }
       }
       setEditingQuoteId(null); setQuoteAmount(''); onRefresh();
-    } catch (err: any) { setSchemaError(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "quotedAmount" bigint;`); } finally { setIsUpdatingQuote(false); }
+    } catch (err: any) { setPlanSchemaError(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "quotedAmount" bigint;`); } finally { setIsUpdatingQuote(false); }
   };
 
   const handleSavePlan = async () => {
     if (!planForm.id || !planForm.title) return;
     try {
-      if (editingPlanId) await db.plans.update(editingPlanId, planForm);
-      else await db.plans.insert({ ...planForm, isVisible: true });
-      onUpdatePlans(); setEditingPlanId(null);
+      // DBカラム名は is_visible なので変換して送る
+      const { isVisible, ...rest } = planForm;
+      const payload = { ...rest, is_visible: isVisible !== false };
+
+      if (editingPlanId) await db.plans.update(editingPlanId, payload);
+      else await db.plans.insert(payload);
+      
+      onUpdatePlans(); setEditingPlanId(null); setPlanSchemaError(null);
       setPlanForm({ id: '', title: '', price: '$', amount: 0, description: '', number: '', isVisible: true });
     } catch (err: any) {
-      alert("Failed to save plan: " + err.message);
+      setPlanSchemaError(`ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_visible boolean DEFAULT true;`);
     }
   };
 
@@ -119,11 +124,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const togglePlanVisibility = async (p: Plan) => {
+    const nextVal = p.isVisible === false ? true : false;
     try {
-      await db.plans.update(p.id, { isVisible: !p.isVisible });
+      // データベースの列名 is_visible を指定して更新
+      await db.plans.update(p.id, { is_visible: nextVal });
       onUpdatePlans();
+      setPlanSchemaError(null);
     } catch (err) {
-      alert("Sync failed");
+      console.error("Plan visibility error:", err);
+      setPlanSchemaError(`ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_visible boolean DEFAULT true;`);
     }
   };
 
@@ -355,6 +364,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="space-y-6">
         {statusFilter === 'plans' ? (
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
+             {planSchemaError && (
+               <div className="bg-amber-50 border-2 border-amber-200 p-8 rounded-[2.5rem] space-y-4 animate-in shake duration-500">
+                 <div className="flex items-center gap-4 text-amber-700">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <h4 className="text-sm font-black uppercase tracking-widest">Database Schema Sync Required</h4>
+                 </div>
+                 <p className="text-[10px] font-medium text-amber-600 leading-relaxed italic">The 'isVisible' feature requires a database update. Please run the following SQL in your Supabase SQL Editor:</p>
+                 <div className="bg-slate-900 p-4 rounded-xl">
+                   <code className="text-[9px] font-mono text-emerald-400 block">ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_visible boolean DEFAULT true;</code>
+                 </div>
+                 <button onClick={() => setPlanSchemaError(null)} className="text-[9px] font-black text-amber-700 uppercase tracking-widest underline">Dismiss warning</button>
+               </div>
+             )}
+
              <div className={`${editingPlanId ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'} p-10 rounded-[3rem] border space-y-8 transition-all`}>
                 <div className="flex justify-between items-center">
                   <h3 className="text-xl font-black uppercase tracking-tight jakarta">{editingPlanId ? 'Update Production Plan' : 'Register New Production Plan'}</h3>

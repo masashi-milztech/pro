@@ -13,6 +13,7 @@ export interface Plan {
   price: string;
   amount: number;
   number: string;
+  isVisible?: boolean; // 表示・非表示フラグを追加
 }
 
 export interface User {
@@ -85,7 +86,8 @@ export const DEFAULT_PLANS: Record<string, Plan> = {
     description: 'Advanced removal of existing assets. We clean the digital canvas to reveal the structural potential of your space.',
     price: '$35',
     amount: 3500,
-    number: '01'
+    number: '01',
+    isVisible: true
   },
   [PlanType.FURNITURE_ADD]: {
     id: PlanType.FURNITURE_ADD,
@@ -93,7 +95,8 @@ export const DEFAULT_PLANS: Record<string, Plan> = {
     description: 'Precision staging for vacant rooms. Curated sets selected by architectural visualizers to maximize market value.',
     price: '$35',
     amount: 3500,
-    number: '02'
+    number: '02',
+    isVisible: true
   },
   [PlanType.FURNITURE_BOTH]: {
     id: PlanType.FURNITURE_BOTH,
@@ -101,7 +104,8 @@ export const DEFAULT_PLANS: Record<string, Plan> = {
     description: 'Complete spatial overhaul. Existing items are removed and replaced with elite, high-resolution digital staging.',
     price: '$60',
     amount: 6000,
-    number: '03'
+    number: '03',
+    isVisible: true
   },
   [PlanType.FLOOR_PLAN_CG]: {
     id: PlanType.FLOOR_PLAN_CG,
@@ -109,7 +113,8 @@ export const DEFAULT_PLANS: Record<string, Plan> = {
     description: 'Transformation of 2D floor plans into high-end 3D overhead visualizations. Comprehensive spatial modeling based on architectural drawings.',
     price: 'Custom Quote',
     amount: 0,
-    number: '04'
+    number: '04',
+    isVisible: true
   }
 };
 

@@ -18,7 +18,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
   const isDragging = useRef(false);
 
   // 公開設定になっているプランのみを抽出
-  const visiblePlans = Object.values(plans).filter(p => p.isVisible !== false);
+  const visiblePlans = (Object.values(plans) as Plan[]).filter(p => p.isVisible !== false);
 
   const scrollToShowcase = () => {
     showcaseRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,7 +106,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
       {showExplorer && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-xl p-4 md:p-10 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-5xl h-[90vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
-            <div className="p-8 md:px-12 md:py-8 flex justify-between items-center border-b">
+            <div className="p-8 md:px-12 md:py-8 flex justify-between items-center border-b text-left">
                <div className="space-y-1">
                  <h3 className="text-2xl font-black uppercase tracking-tight jakarta text-slate-900">Showcase Explorer</h3>
                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Select a project to view comparison</p>
@@ -128,7 +128,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
                     <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-200">
                        <img src={proj.afterurl} className="w-full h-full object-cover" alt="" />
                     </div>
-                    <div className="flex-grow">
+                    <div className="flex-grow text-left">
                        <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-2 block">{proj.category}</span>
                        <h4 className="text-sm md:text-xl font-black uppercase tracking-tight text-slate-900 group-hover:translate-x-1 transition-transform">{proj.title}</h4>
                     </div>
@@ -150,7 +150,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
       {viewingProject && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black animate-in fade-in duration-300">
           <div className="bg-white w-full h-full md:h-[95vh] md:w-[95vw] md:rounded-[4rem] shadow-2xl flex flex-col overflow-hidden">
-            <div className="p-6 md:px-12 md:py-8 flex justify-between items-center bg-white border-b sticky top-0 z-10">
+            <div className="p-6 md:px-12 md:py-8 flex justify-between items-center bg-white border-b sticky top-0 z-10 text-left">
                <div className="flex items-center gap-6">
                  <button onClick={() => setViewingProject(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-900 transition-all">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,34 +171,40 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
 
             <div className="flex-1 overflow-y-auto p-6 md:p-12 no-scrollbar space-y-16">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
+                  <div className="space-y-4 text-left">
                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] block px-2">Original State (Before)</span>
-                     <div className="aspect-[4/3] md:aspect-video bg-slate-50 rounded-[2rem] overflow-hidden border border-slate-100">
+                     <div className="aspect-[4/3] md:aspect-video bg-slate-950 rounded-[2rem] overflow-hidden border border-slate-900">
                         <img src={viewingProject.beforeurl} className="w-full h-full object-contain" alt="Before" />
                      </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-4 text-left">
                      <span className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.3em] block px-2">Staged Vision (After)</span>
-                     <div className="aspect-[4/3] md:aspect-video bg-slate-50 rounded-[2rem] overflow-hidden border border-emerald-50 shadow-sm">
+                     <div className="aspect-[4/3] md:aspect-video bg-slate-950 rounded-[2rem] overflow-hidden border border-slate-900 shadow-sm">
                         <img src={viewingProject.afterurl} className="w-full h-full object-contain" alt="After" />
                      </div>
                   </div>
                </div>
 
-               <div className="space-y-8 pt-8 border-t border-slate-50">
+               <div className="space-y-8 pt-8 border-t border-slate-50 text-center">
                   <div className="text-center">
                     <h4 className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 mb-2">Interactive Comparison</h4>
                     <p className="text-xs font-medium italic text-slate-300">Drag the center handle to explore spatial transformation</p>
                   </div>
                   <div 
-                    className="relative w-full aspect-[4/3] md:aspect-video max-h-[70vh] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden cursor-ew-resize touch-none select-none shadow-2xl bg-slate-50 border border-slate-100 mx-auto"
+                    className="relative w-full aspect-[4/3] md:aspect-video max-h-[70vh] rounded-[2.5rem] md:rounded-[4rem] overflow-hidden cursor-ew-resize touch-none select-none shadow-2xl bg-slate-950 border border-slate-900 mx-auto"
                     ref={containerRef}
                     onMouseDown={handleStart}
                     onTouchStart={handleStart}
                   >
-                    <img src={viewingProject.afterurl} className="absolute inset-0 w-full h-full object-contain" alt="After" draggable="false" />
-                    <div className="absolute inset-0 w-full h-full overflow-hidden" style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}>
-                      <img src={viewingProject.beforeurl} className="absolute inset-0 w-full h-full object-cover" alt="Before" draggable="false" />
+                    {/* 下層: 元の画像 (Before) */}
+                    <img src={viewingProject.beforeurl} className="absolute inset-0 w-full h-full object-contain" alt="Before" draggable="false" />
+                    
+                    {/* 上層: 制作後の画像 (After) - 背景色を設定して下の画像が透けないようにする */}
+                    <div 
+                      className="absolute inset-0 w-full h-full overflow-hidden bg-slate-950" 
+                      style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+                    >
+                      <img src={viewingProject.afterurl} className="absolute inset-0 w-full h-full object-contain" alt="After" draggable="false" />
                     </div>
                     
                     <div className="absolute inset-y-0 z-20 pointer-events-none" style={{ left: `${sliderPos}%` }}>
@@ -244,7 +250,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
               </h1>
             </div>
             <div className="max-w-4xl mx-auto space-y-6 md:space-y-10 px-4">
-              <p className="text-sm md:text-2xl lg:text-3xl text-slate-500 font-medium leading-relaxed tracking-tight px-2">
+              <p className="text-sm md:text-2xl lg:text-3xl text-slate-500 font-medium leading-relaxed tracking-tight px-2 text-center">
                 Architectural Visualization for Professionals. <br className="hidden md:block" />
                 Studio-grade staging crafted with meticulous precision.
               </p>
@@ -276,8 +282,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
 
       {/* Visuals (Showcase) Section */}
       <section ref={showcaseRef} className="py-20 md:py-40 px-6 max-w-[1400px] mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-10 mb-20">
-          <div className="space-y-4 text-center md:text-left">
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-10 mb-20 text-center md:text-left">
+          <div className="space-y-4">
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.5em]">The Archive</span>
             <h2 className="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter uppercase jakarta">Visuals.</h2>
           </div>
@@ -294,7 +300,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
             <div 
               key={sample.id}
               onClick={() => { setViewingProject(sample as ArchiveProject); setSliderPos(50); }}
-              className="group cursor-pointer bg-white rounded-[2.5rem] border border-slate-50 p-6 hover:border-slate-900 hover:shadow-2xl transition-all duration-500"
+              className="group cursor-pointer bg-white rounded-[2.5rem] border border-slate-50 p-6 hover:border-slate-900 hover:shadow-2xl transition-all duration-500 text-left"
             >
               <div className="aspect-[4/3] rounded-[1.5rem] overflow-hidden bg-slate-100 mb-6 relative">
                  <img src={sample.afterurl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={sample.title} />
@@ -323,7 +329,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
             {visiblePlans.map((plan) => (
               <div 
                 key={plan.id} 
-                className="group relative flex flex-col md:flex-row items-center gap-8 md:gap-12 p-8 md:p-12 bg-white rounded-[2.5rem] border border-slate-100 hover:border-slate-900 hover:shadow-2xl transition-all duration-500"
+                className="group relative flex flex-col md:flex-row items-center gap-8 md:gap-12 p-8 md:p-12 bg-white rounded-[2.5rem] border border-slate-100 hover:border-slate-900 hover:shadow-2xl transition-all duration-500 text-left"
               >
                 <div className="text-5xl md:text-7xl font-black text-slate-50 group-hover:text-slate-100 transition-colors pointer-events-none select-none jakarta">
                   {plan.number}
@@ -353,7 +359,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 md:py-40 px-6 max-w-[1000px] mx-auto">
+      <section className="py-20 md:py-40 px-6 max-w-[1000px] mx-auto text-center">
         <div className="text-center mb-20 space-y-4">
            <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.8em]">Frequently Asked Questions</span>
            <h2 className="text-4xl md:text-7xl font-black text-slate-900 tracking-tighter uppercase jakarta">Support Archive</h2>
@@ -373,7 +379,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
                  </span>
                </button>
                {activeFaq === idx && (
-                 <div className="pb-10 animate-in slide-in-from-top-4 duration-300">
+                 <div className="pb-10 animate-in slide-in-from-top-4 duration-300 text-left">
                    <p className="text-sm md:text-lg text-slate-500 font-medium leading-relaxed max-w-3xl italic">{faq.a}</p>
                  </div>
                )}
@@ -389,7 +395,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, archiveProjec
          </div>
          <div className="max-w-[1400px] mx-auto px-6 text-center space-y-6 animate-in fade-in duration-1000">
             <div className="space-y-2">
-               <p className="text-[7px] md:text-[8px] font-medium text-slate-600 uppercase tracking-[2.5em] translate-x-[1.25em] mb-4">
+               <p className="text-[7px] md:text-[8px] font-medium text-slate-600 uppercase tracking-[2.5em] translate-x-[1.25em] mb-4 text-center">
                   AI · EXPERIENCE · EXTREME
                </p>
                <div className="jakarta flex flex-col items-center gap-2">

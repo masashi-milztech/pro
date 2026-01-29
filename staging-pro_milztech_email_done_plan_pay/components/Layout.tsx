@@ -21,7 +21,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, plans 
           <div className="space-y-12 py-10">
             <h3 className="text-4xl font-black jakarta tracking-tighter uppercase">Transparent Pricing</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {Object.values(plans).map((plan) => (
+              {/* Added explicit cast to Plan[] to resolve 'unknown' type errors */}
+              {(Object.values(plans) as Plan[]).map((plan) => (
                 <div key={plan.id} className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100">
                   <h4 className="text-lg font-black uppercase mb-2">{plan.title}</h4>
                   <p className="text-4xl font-black mb-4">{plan.price}</p>

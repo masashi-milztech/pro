@@ -40,17 +40,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const [lastReadMap, setLastReadMap] = useState<Record<string, number>>({});
   
-  // Quote States
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [quoteAmount, setQuoteAmount] = useState<string>('');
   const [isUpdatingQuote, setIsUpdatingQuote] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
 
-  // Reject Note State
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
 
-  // Editor Add Form State
   const [newEditorName, setNewEditorName] = useState('');
   const [newEditorSpecialty, setNewEditorSpecialty] = useState('');
   const [newEditorEmail, setNewEditorEmail] = useState('');
@@ -66,7 +63,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const msgs = await db.messages.fetchAll() as Message[];
       setAllMessages(msgs);
       
-      // Update local last read map from localStorage
       const map: Record<string, number> = {};
       submissions.forEach(s => {
         const val = localStorage.getItem(`chat_last_read_${s.id}`);
@@ -81,7 +77,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleUpdateQuote = async (id: string) => {
     const amount = parseInt(quoteAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert("Please enter a valid amount in cents (e.g., 5000 for $50.00)");
+      alert("Please enter valid amount.");
       return;
     }
     
@@ -89,13 +85,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       await db.submissions.update(id, { quotedAmount: amount });
       
-      // Send custom email notification to the client
       const sub = submissions.find(s => s.id === id);
       if (sub && sub.ownerEmail) {
         try {
           await sendStudioEmail(
             sub.ownerEmail,
-            `Quote Prepared: Project ${id}`,
+            `Quote Ready: ${id}`,
             EMAIL_TEMPLATES.QUOTE_READY({
               orderId: id,
               planName: plans[sub.plan]?.title || '3D Modeling',
@@ -105,36 +100,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             })
           );
         } catch (e) {
-          console.error("Failed to send quote email:", e);
+          console.error("Email error:", e);
         }
       }
 
       setEditingQuoteId(null);
       setQuoteAmount('');
-      setSchemaError(null);
       onRefresh();
     } catch (err: any) {
-      console.error("Quote update error:", err);
+      console.error("Quote error:", err);
       setSchemaError(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "quotedAmount" bigint;`);
     } finally {
       setIsUpdatingQuote(false);
     }
-  };
-
-  const handleConfirmReject = () => {
-    if (!rejectingId) return;
-    onReject(rejectingId, rejectNote);
-    setRejectingId(null);
-    setRejectNote('');
-  };
-
-  const handleAddEditor = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEditorName || !newEditorSpecialty) return;
-    onAddEditor(newEditorName, newEditorSpecialty, newEditorEmail);
-    setNewEditorName('');
-    setNewEditorSpecialty('');
-    setNewEditorEmail('');
   };
 
   const submissionChatInfo = useMemo(() => {
@@ -145,14 +123,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!info[sId]) info[sId] = { count: 0, hasNew: false };
       info[sId].count += 1;
       
+      const lastSeen = lastReadMap[sId] || 0;
       if (!info[sId].lastMessage || msg.timestamp > info[sId].lastMessage.timestamp) {
         info[sId].lastMessage = msg;
-        
-        // REFINED Logic: Check if User sent it and if it's newer than our local read receipt
-        const lastSeen = lastReadMap[sId] || 0;
-        if (msg.sender_role === 'user' && msg.timestamp > lastSeen) {
-           info[sId].hasNew = true;
-        }
+      }
+      
+      // Admin側: Userが送信した最新メッセージが、自分が最後に見た時間より新しければNEW
+      if (msg.sender_role === 'user' && msg.timestamp > lastSeen) {
+         info[sId].hasNew = true;
       }
     });
     return info;
@@ -242,134 +220,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {viewingDetail && <DetailModal submission={viewingDetail} plans={plans} onClose={() => setViewingDetail(null)} />}
       {chattingSubmission && <ChatBoard submission={chattingSubmission} user={user} plans={plans} onClose={() => { setChattingSubmission(null); loadAllMessages(); }} />}
       
-      {/* Team Manager Modal */}
-      {showEditorManager && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
-            <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center">
-              <div className="space-y-1">
-                <h3 className="text-2xl font-black uppercase jakarta tracking-tight text-slate-900">Studio Team Manager</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manage Production Visualizers</p>
-              </div>
-              <button onClick={() => setShowEditorManager(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-900 hover:text-white transition-all">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-10 no-scrollbar space-y-12">
-              <div className="bg-slate-50 rounded-[2rem] p-8 space-y-6">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-900">Add New Visualizer</h4>
-                <form onSubmit={handleAddEditor} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <input 
-                    value={newEditorName}
-                    onChange={(e) => setNewEditorName(e.target.value)}
-                    placeholder="Full Name"
-                    className="px-6 py-4 rounded-xl text-sm font-medium border-2 border-transparent focus:border-slate-900 outline-none bg-white shadow-sm"
-                    required
-                  />
-                  <input 
-                    value={newEditorSpecialty}
-                    onChange={(e) => setNewEditorSpecialty(e.target.value)}
-                    placeholder="Specialty (e.g. CGI, Staging)"
-                    className="px-6 py-4 rounded-xl text-sm font-medium border-2 border-transparent focus:border-slate-900 outline-none bg-white shadow-sm"
-                    required
-                  />
-                  <input 
-                    type="email"
-                    value={newEditorEmail}
-                    onChange={(e) => setNewEditorEmail(e.target.value)}
-                    placeholder="Studio Email"
-                    className="px-6 py-4 rounded-xl text-sm font-medium border-2 border-transparent focus:border-slate-900 outline-none bg-white shadow-sm"
-                    required
-                  />
-                  <button type="submit" className="md:col-span-3 py-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.4em] shadow-xl hover:bg-black transition-all">
-                    Register Visualizer
-                  </button>
-                </form>
-              </div>
-
-              <div className="space-y-6">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-900">Studio Directory</h4>
-                <div className="grid grid-cols-1 gap-4">
-                  {editors.map((ed) => (
-                    <div key={ed.id} className="group flex items-center justify-between p-6 bg-white border border-slate-100 rounded-2xl hover:border-slate-900 hover:shadow-lg transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs">
-                          {ed.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-tight text-slate-900">{ed.name}</p>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{ed.specialty}</span>
-                            <span className="text-[9px] text-slate-200">|</span>
-                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">ID: {ed.id}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => onDeleteEditor(ed.id)}
-                        className="px-6 py-2 border border-slate-100 text-rose-500 rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
-                  {editors.length === 0 && (
-                    <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">No registered visualizers</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {schemaError && (
         <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl p-12 space-y-8 border-4 border-rose-500">
-             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-             </div>
              <div className="text-center space-y-4">
                 <h3 className="text-2xl font-black uppercase tracking-tight jakarta text-slate-900">SQL設定が必要です</h3>
                 <p className="text-sm font-medium text-slate-500 leading-relaxed italic">
-                  見積金額を保存するためのカラムが不足しています。<br/>
-                  Supabaseの <b>SQL Editor</b> で以下のコードを実行してから金額をセットしてください。
+                   見積金額を保存するためのカラムが不足しています。
                 </p>
              </div>
              <div className="bg-slate-900 p-6 rounded-2xl overflow-hidden shadow-inner relative group">
                 <code className="text-emerald-400 text-[10px] font-mono break-all leading-relaxed block">
                    {schemaError}
                 </code>
-                <button 
-                  onClick={() => { navigator.clipboard.writeText(schemaError); alert("Copied to clipboard!"); }}
-                  className="absolute top-4 right-4 text-[8px] font-black text-white/40 hover:text-white uppercase tracking-widest border border-white/10 rounded-lg px-3 py-1.5"
-                >
-                  Copy SQL
-                </button>
              </div>
              <button onClick={() => setSchemaError(null)} className="w-full py-5 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">閉じる</button>
           </div>
-        </div>
-      )}
-
-      {rejectingId && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-6">
-              <h3 className="text-xl font-black uppercase jakarta">差し戻し理由の入力</h3>
-              <textarea 
-                value={rejectNote} 
-                onChange={e => setRejectNote(e.target.value)} 
-                placeholder="修正が必要な箇所をエディターに伝えてください..." 
-                className="w-full bg-slate-50 p-6 rounded-2xl text-sm font-medium outline-none border-2 border-transparent focus:border-rose-500 h-32 resize-none"
-              />
-              <div className="flex gap-4">
-                 <button onClick={() => setRejectingId(null)} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-300">キャンセル</button>
-                 <button onClick={handleConfirmReject} className="flex-1 py-4 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">差し戻し実行</button>
-              </div>
-           </div>
         </div>
       )}
 
@@ -447,9 +313,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block leading-none">{plans[sub.plan]?.title || sub.plan}</span>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">ID: {sub.id}</span>
-                        {isQuotePlan && (
-                          <span className="text-[7px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">Quote Mode</span>
-                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">

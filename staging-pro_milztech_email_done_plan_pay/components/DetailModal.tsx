@@ -23,7 +23,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
 
   const afterImageUrl = activeStage === 'remove' ? submission.resultRemoveUrl : (submission.resultAddUrl || submission.resultDataUrl);
   const needsPayment = submission.plan === PlanType.FLOOR_PLAN_CG && submission.paymentStatus === 'quote_pending' && submission.quotedAmount;
-  const isPaid = submission.paymentStatus === 'paid';
 
   const handleDownload = async (url: string, prefix: string) => {
     if (isDownloading) return;
@@ -44,7 +43,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.error("Download failed, falling back to open:", err);
+      console.error("Download failed:", err);
       window.open(url, '_blank');
     } finally {
       setIsDownloading(false);
@@ -92,7 +91,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
 
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-black animate-in fade-in duration-300 overflow-hidden">
-      {/* Header */}
       <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-black sticky top-0 z-50">
         <div className="flex flex-col">
           <h2 className="text-white text-sm font-black uppercase tracking-tight truncate max-w-[200px]">{plans[submission.plan]?.title || submission.plan}</h2>
@@ -123,11 +121,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
             </div>
             <div className="space-y-1">
               <span className="text-[8px] font-black uppercase tracking-widest text-slate-300">Payment</span>
-              <div className="flex items-center gap-2">
-                <p className={`text-[10px] font-black uppercase ${submission.paymentStatus === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {submission.paymentStatus.replace('_', ' ')}
-                </p>
-              </div>
+              <p className={`text-[10px] font-black uppercase ${submission.paymentStatus === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                {submission.paymentStatus.replace('_', ' ')}
+              </p>
             </div>
           </div>
 
@@ -135,7 +131,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
              <div className="p-8 bg-indigo-50 border-2 border-indigo-200 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 animate-in zoom-in">
                 <div className="space-y-2 text-center md:text-left">
                    <h4 className="text-xl font-black uppercase jakarta text-indigo-900">Payment Required</h4>
-                   <p className="text-sm font-medium text-indigo-600 italic">Our team has finalized the quote for your custom request.</p>
+                   <p className="text-sm font-medium text-indigo-600 italic">Our team has finalized the quote for your request.</p>
                 </div>
                 <button 
                   onClick={() => onTriggerCheckout?.(submission.id, plans[submission.plan]?.title || 'Staging Service', submission.quotedAmount!)}
@@ -144,27 +140,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
                   Complete Payment Now
                 </button>
              </div>
-          )}
-
-          {isPaid && (
-            <div className="p-6 bg-slate-900 rounded-[2rem] flex items-center justify-between gap-4 border border-white/10 shadow-xl">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white">
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  </div>
-                  <div className="space-y-1">
-                     <p className="text-[10px] font-black text-white uppercase tracking-widest">Billing Receipt Ready</p>
-                     <p className="text-[8px] font-medium text-slate-400 uppercase tracking-widest">Stripe Official Invoice Available</p>
-                  </div>
-               </div>
-               <a 
-                href="https://billing.stripe.com/p/login/test_6oE14qg6z3X84Cc5kk" 
-                target="_blank" 
-                className="px-6 py-3 bg-white text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-               >
-                 View Receipt
-               </a>
-            </div>
           )}
 
           <div className="space-y-6">
@@ -205,7 +180,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ submission, plans, onC
                   <div className="relative z-10 flex flex-col items-center">
                     <div className="w-10 h-10 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin mb-4"></div>
                     <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-900 bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow-sm">
-                      {submission.status === 'quote_request' ? 'Awaiting Quote Confirmation' : 'In Production'}
+                      {submission.status === 'quote_request' ? 'Awaiting Quote' : 'In Production'}
                     </p>
                   </div>
                 </div>

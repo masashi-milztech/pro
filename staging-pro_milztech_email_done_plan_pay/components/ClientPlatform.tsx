@@ -26,7 +26,8 @@ const FLOOR_PLAN_GUIDE = `Please provide the following details:
 
 export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmission, userSubmissions, plans }) => {
   // 公開設定になっているプランのみを抽出
-  const visiblePlansList = useMemo(() => Object.values(plans).filter(p => p.isVisible !== false), [plans]);
+  // Added explicit cast to Plan[] to resolve 'unknown' type errors from Object.values
+  const visiblePlansList = useMemo(() => (Object.values(plans) as Plan[]).filter(p => p.isVisible !== false), [plans]);
   
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(visiblePlansList[0]?.id as PlanType || PlanType.FURNITURE_REMOVE);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

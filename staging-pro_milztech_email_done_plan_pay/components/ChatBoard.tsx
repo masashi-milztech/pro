@@ -1,13 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-// Import Plan instead of non-existent PLAN_DETAILS
 import { Submission, Message, User, Plan } from '../types';
 import { db } from '../lib/supabase';
 
 interface ChatBoardProps {
   submission: Submission;
   user: User;
-  // Add plans prop to match usage in parent components
   plans: Record<string, Plan>;
   onClose: () => void;
 }
@@ -25,6 +23,14 @@ export const ChatBoard: React.FC<ChatBoardProps> = ({ submission, user, plans, o
     const interval = setInterval(loadMessages, 5000); 
     return () => clearInterval(interval);
   }, [submission.id]);
+
+  // Mark messages as read by recording the latest timestamp in localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      const latestTimestamp = Math.max(...messages.map(m => m.timestamp));
+      localStorage.setItem(`chat_last_read_${submission.id}`, latestTimestamp.toString());
+    }
+  }, [messages, submission.id]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -82,7 +88,6 @@ export const ChatBoard: React.FC<ChatBoardProps> = ({ submission, user, plans, o
   return (
     <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-2xl h-[90vh] md:h-[85vh] rounded-[2.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
         <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl overflow-hidden border border-slate-100 flex-shrink-0">
@@ -90,7 +95,6 @@ export const ChatBoard: React.FC<ChatBoardProps> = ({ submission, user, plans, o
             </div>
             <div>
               <h3 className="text-[12px] md:text-sm font-black uppercase tracking-tight jakarta text-slate-900">
-                {/* Use plans prop instead of non-existent PLAN_DETAILS */}
                 {plans[submission.plan]?.title}
               </h3>
               <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest">
@@ -103,7 +107,6 @@ export const ChatBoard: React.FC<ChatBoardProps> = ({ submission, user, plans, o
           </button>
         </div>
 
-        {/* Messages / Setup Warning */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 no-scrollbar bg-slate-50/50">
           {isTableMissing ? (
             <div className="h-full flex flex-col items-center justify-center space-y-6 p-6 text-center">
@@ -133,7 +136,6 @@ export const ChatBoard: React.FC<ChatBoardProps> = ({ submission, user, plans, o
             </div>
           ) : (
             messages.map((msg) => {
-              // Fix: Use snake_case properties as defined in Message interface (msg.sender_id, msg.sender_name, msg.sender_role)
               const isMe = msg.sender_id === user.id;
               const senderDisplayName = msg.sender_name || "Unknown";
               const senderRoleName = msg.sender_role || "";
@@ -161,7 +163,6 @@ export const ChatBoard: React.FC<ChatBoardProps> = ({ submission, user, plans, o
           )}
         </div>
 
-        {/* Input */}
         <div className="p-6 md:p-8 bg-white border-t border-slate-100">
           <form onSubmit={handleSendMessage} className="flex gap-4">
             <input 

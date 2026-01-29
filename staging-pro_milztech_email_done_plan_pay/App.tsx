@@ -32,11 +32,19 @@ const App: React.FC = () => {
 
   const loadPlans = useCallback(async () => {
     try {
-      const data = await db.plans.fetchAll() as Plan[];
+      const data = await db.plans.fetchAll() as any[];
+      const planMap: Record<string, Plan> = {};
       if (data && data.length > 0) {
-        const planMap: Record<string, Plan> = {};
-        data.forEach(p => { planMap[p.id] = p; });
+        data.forEach(p => { 
+          // DBの is_visible (スネークケース) を isVisible (キャメルケース) に変換
+          planMap[p.id] = { 
+            ...p, 
+            isVisible: p.is_visible !== false 
+          }; 
+        });
         setPlans(planMap);
+      } else {
+        setPlans({});
       }
     } catch (e) {
       console.warn("[Plans] Load failed (using defaults)");

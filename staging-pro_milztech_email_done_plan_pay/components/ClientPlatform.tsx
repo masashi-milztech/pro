@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { PlanType, Submission, User, Plan, ReferenceImage, getEstimatedDeliveryDate } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PlanType, Submission, User, Plan, ReferenceImage, Message, getEstimatedDeliveryDate } from '../types';
 import { PlanCard } from './PlanCard';
 import { FileUpload } from './FileUpload';
 import { DetailModal } from './DetailModal';
@@ -37,8 +37,16 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
   const [chattingSubmission, setChattingSubmission] = useState<Submission | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
+  const [allMessages, setAllMessages] = useState<Message[]>([]);
+  const [lastReadMap, setLastReadMap] = useState<Record<string, number>>({});
 
   const isQuotePlan = selectedPlan === PlanType.FLOOR_PLAN_CG;
+
+  useEffect(() => {
+    loadAllMessages();
+    const interval = setInterval(loadAllMessages, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -50,6 +58,43 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
       handlePaymentSuccess(orderId, sessionId);
     }
   }, []);
+
+  const loadAllMessages = async () => {
+    try {
+      const msgs = await db.messages.fetchAll() as Message[];
+      setAllMessages(msgs);
+      
+      // Update local last read map for Client
+      const map: Record<string, number> = {};
+      userSubmissions.forEach(s => {
+        const val = localStorage.getItem(`chat_last_read_${s.id}`);
+        if (val) map[s.id] = parseInt(val);
+      });
+      setLastReadMap(map);
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+    }
+  };
+
+  const submissionChatInfo = useMemo(() => {
+    const info: Record<string, { count: number, hasNew: boolean }> = {};
+    allMessages.forEach(msg => {
+      const sId = msg.submission_id;
+      if (!sId) return;
+      if (!info[sId]) info[sId] = { count: 0, hasNew: false };
+      
+      info[sId].count += 1;
+      
+      // Client logic: It is "NEW" if the sender was studio (admin/editor) AND it is after our last visit
+      const lastSeen = lastReadMap[sId] || 0;
+      const isFromStudio = msg.sender_role === 'admin' || msg.sender_role === 'editor';
+      
+      if (isFromStudio && msg.timestamp > lastSeen) {
+         info[sId].hasNew = true;
+      }
+    });
+    return info;
+  }, [allMessages, lastReadMap]);
 
   const handlePlanChange = (type: PlanType) => {
     setSelectedPlan(type);
@@ -110,7 +155,6 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
   };
 
   const triggerCheckout = async (orderId: string, planTitle: string, amount: number) => {
-    console.log("[StagingPro] Initializing checkout sequence:", orderId, "amount:", amount);
     setIsCheckingOutId(orderId);
     try {
       const response = await fetch('/api/create-checkout-session', {
@@ -195,9 +239,8 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
   return (
     <div className="max-w-[1400px] mx-auto py-16 px-6 lg:px-12">
       {viewingDetail && <DetailModal submission={viewingDetail} plans={plans} onClose={() => setViewingDetail(null)} onTriggerCheckout={triggerCheckout} />}
-      {chattingSubmission && <ChatBoard submission={chattingSubmission} user={user} plans={plans} onClose={() => setChattingSubmission(null)} />}
+      {chattingSubmission && <ChatBoard submission={chattingSubmission} user={user} plans={plans} onClose={() => { setChattingSubmission(null); loadAllMessages(); }} />}
 
-      {/* Confirmation Modal */}
       {isConfirming && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-10 md:p-14 space-y-10 animate-in zoom-in duration-300">
@@ -338,9 +381,19 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
             {userSubmissions.filter(s => s.paymentStatus === 'paid' || s.paymentStatus === 'quote_pending').map((sub) => {
               const needsPayment = sub.plan === PlanType.FLOOR_PLAN_CG && sub.paymentStatus === 'quote_pending' && sub.quotedAmount;
               const isCheckingOut = isCheckingOutId === sub.id;
+              const hasNewMessage = submissionChatInfo[sub.id]?.hasNew;
 
               return (
-                <div key={sub.id} className={`group flex flex-col p-6 bg-white rounded-[2.5rem] border transition-all ${needsPayment ? 'border-indigo-500 shadow-xl ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-900'}`}>
+                <div key={sub.id} className={`group flex flex-col p-6 bg-white rounded-[2.5rem] border transition-all relative ${needsPayment ? 'border-indigo-500 shadow-xl ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-900'}`}>
+                  {hasNewMessage && (
+                    <div className="absolute top-4 right-6 animate-bounce">
+                       <div className="bg-emerald-500 text-white text-[7px] font-black px-2 py-1 rounded-full shadow-lg shadow-emerald-500/20 tracking-widest flex items-center gap-1.5">
+                          <span className="w-1 h-1 bg-white rounded-full animate-ping"></span>
+                          NEW MESSAGE
+                       </div>
+                    </div>
+                  )}
+                  
                   <div className="flex gap-4 mb-4">
                     <div onClick={() => setViewingDetail(sub)} className="w-20 h-20 rounded-[1.2rem] overflow-hidden flex-shrink-0 bg-slate-100 relative cursor-pointer">
                       <img src={sub.dataUrl} className="w-full h-full object-cover" alt="" />
@@ -389,9 +442,9 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
                         e.stopPropagation();
                         setChattingSubmission(sub);
                       }}
-                      className="w-full py-3.5 bg-slate-50 rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 relative z-[20] pointer-events-auto"
+                      className={`w-full py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 relative z-[20] pointer-events-auto ${hasNewMessage ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20' : 'bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white'}`}
                     >
-                      Contact Studio
+                      Contact Studio {hasNewMessage && `(${submissionChatInfo[sub.id].count})`}
                     </button>
                   </div>
                 </div>

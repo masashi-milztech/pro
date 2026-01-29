@@ -4,6 +4,7 @@ import { Submission, Plan, Editor, User, PlanType, Message, ArchiveProject, getE
 import { DetailModal } from './DetailModal';
 import { ChatBoard } from './ChatBoard';
 import { db } from '../lib/supabase';
+import { sendStudioEmail, EMAIL_TEMPLATES } from '../lib/email';
 
 interface AdminDashboardProps {
   user: User;
@@ -32,7 +33,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   if (!user) return null;
 
   const [showOnlyMine, setShowOnlyMine] = useState(user?.role === 'editor');
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
+  const [statusFilter, setStatusFilter] = useState('all' as FilterStatus);
   const [viewingDetail, setViewingDetail] = useState<Submission | null>(null);
   const [chattingSubmission, setChattingSubmission] = useState<Submission | null>(null);
   const [showEditorManager, setShowEditorManager] = useState(false);
@@ -58,14 +59,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     loadAllMessages();
     const interval = setInterval(loadAllMessages, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [submissions]);
 
   const loadAllMessages = async () => {
     try {
       const msgs = await db.messages.fetchAll() as Message[];
       setAllMessages(msgs);
       
-      // Update local last read map from localStorage for Admin/Editor
+      // Update local last read map from localStorage
       const map: Record<string, number> = {};
       submissions.forEach(s => {
         const val = localStorage.getItem(`chat_last_read_${s.id}`);
@@ -87,6 +88,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsUpdatingQuote(true);
     try {
       await db.submissions.update(id, { quotedAmount: amount });
+      
+      // Send custom email notification to the client
+      const sub = submissions.find(s => s.id === id);
+      if (sub && sub.ownerEmail) {
+        try {
+          await sendStudioEmail(
+            sub.ownerEmail,
+            `Quote Prepared: Project ${id}`,
+            EMAIL_TEMPLATES.QUOTE_READY({
+              orderId: id,
+              planName: plans[sub.plan]?.title || '3D Modeling',
+              amount: `$ ${(amount/100).toFixed(2)}`,
+              thumbnail: sub.dataUrl,
+              actionUrl: window.location.origin
+            })
+          );
+        } catch (e) {
+          console.error("Failed to send quote email:", e);
+        }
+      }
+
       setEditingQuoteId(null);
       setQuoteAmount('');
       setSchemaError(null);
@@ -126,9 +148,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!info[sId].lastMessage || msg.timestamp > info[sId].lastMessage.timestamp) {
         info[sId].lastMessage = msg;
         
-        // Admin/Editor logic: It is "NEW" if the last sender was a user AND it is after our last seen timestamp
+        // REFINED Logic: Check if User sent it and if it's newer than our local read receipt
         const lastSeen = lastReadMap[sId] || 0;
-        info[sId].hasNew = (msg.sender_role === 'user' && msg.timestamp > lastSeen);
+        if (msg.sender_role === 'user' && msg.timestamp > lastSeen) {
+           info[sId].hasNew = true;
+        }
       }
     });
     return info;

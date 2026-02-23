@@ -350,24 +350,32 @@ export const ClientPlatform: React.FC<ClientPlatformProps> = ({ user, onSubmissi
                 </div>
                 <ReferenceImageUpload references={referenceImages} setReferences={setReferenceImages} />
                 
-                <button 
-                  onClick={() => setIsConfirming(true)} 
-                  disabled={!selectedFile || isSubmitting} 
-                  className={`w-full py-8 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.4em] shadow-2xl transition-all flex items-center justify-center gap-4 group ${
-                    !selectedFile || isSubmitting 
-                      ? 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none' 
-                      : 'bg-slate-900 text-white hover:bg-black active:scale-[0.98]'
-                  }`}
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                      <span>SYNCING...</span>
-                    </div>
-                  ) : (
-                    <span>{isQuotePlan ? 'Request Quote & Initialize' : 'Submit & Proceed to Checkout'}</span>
-                  )}
-                </button>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed text-center">
+                      <span className="font-black text-slate-900 uppercase">Cancellation Policy:</span> Once the project status reaches <span className="font-bold text-slate-900">"Editing"</span>, orders cannot be cancelled or refunded.
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => setIsConfirming(true)} 
+                    disabled={!selectedFile || isSubmitting} 
+                    className={`w-full py-8 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.4em] shadow-2xl transition-all flex items-center justify-center gap-4 group ${
+                      !selectedFile || isSubmitting 
+                        ? 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none' 
+                        : 'bg-slate-900 text-white hover:bg-black active:scale-[0.98]'
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        <span>SYNCING...</span>
+                      </div>
+                    ) : (
+                      <span>{isQuotePlan ? 'Request Quote & Initialize' : 'Submit & Proceed to Checkout'}</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
